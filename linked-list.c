@@ -3,9 +3,10 @@
 
 #include "linked-list.h"
 
-/* create a single node with the given data at the given memory
-   location */
+/* accepts a pointer to a null pointer and points it at a single node
+   with the given data */
 int node_create(node_t **head_p, void *data) {
+  if (*head_p != NULL) { return -1; }
   *head_p = malloc(sizeof(node_t));
   if (*head_p == NULL) { return -1; }
   (*head_p)->data = data;
@@ -36,7 +37,7 @@ int node_leap(node_t **current_p, size_t d) {
 /* prepends a node with the given data to the linked list and jumps
    the head node back to this new node */
 int node_prepend(node_t **head0_p, void *data) {
-  node_t *head1;
+  node_t *head1 = NULL;
   if (node_create(&head1, data) == -1) { return -1; }
   head1->next = *head0_p;
   *head0_p = head1;
@@ -46,7 +47,7 @@ int node_prepend(node_t **head0_p, void *data) {
 /* appends a node with the given data to the end of the linked list
    without changing the current node */
 int node_append(node_t *current0, void *data) {
-  node_t *tail, *current1 = current0;
+  node_t *tail = NULL, *current1 = current0;
   if (node_create(&tail, data) == -1) { return -1; }
   while (current1->next != NULL) {
     node_jump(&current1);
@@ -56,7 +57,7 @@ int node_append(node_t *current0, void *data) {
 }
 
 int node_insert(node_t *current, void *data) {
-  node_t *next0, *next1 = current->next;
+  node_t *next0 = NULL, *next1 = current->next;
   if (node_create(&next0, data) == -1) { return -1; }
   next0->next = next1;
   current->next = next0;
@@ -68,22 +69,27 @@ int node_adjoin(node_t *tail0, node_t *head1, bool force_shred) {
     return 0;
   }
   else if (force_shred) {
-    node_shred(tail0->next);
+    node_shred(tail0);
     tail0->next = head1;
     return 1;
   }
   else { return -1; }
 }
 
+/* removes the node following the given one */
 int node_remove(node_t *previous) {
-  if (previous->next == NULL) { return -1; }
-  node_t *next1 = previous->next->next;
-  free(previous->next->data);
-  free(previous->next);
-  previous->next = next1;
+  if (previous == NULL) { return -1; }
+  node_t *current = previous->next;
+  if (current == NULL) { return -1; }
+  node_t *next = current->next;
+  free(current->data);
+  free(current);
+  previous->next = next;
   return 0;
 }
 
+/* frees all nodes and their corresponding data after the current
+   node */
 int node_shred(node_t *current) {
   if (current == NULL) { return -1; }
   node_t *next = current->next;
@@ -98,8 +104,8 @@ int node_shred(node_t *current) {
   return 0;
 }
 
-/*  removes the head node and switches the head node pointer to the
-    next node in the list */
+/* removes the head node and switches the head node pointer to the
+   next node in the list */
 int node_presnip(node_t **head0_p) {
   node_t *head1 = (*head0_p)->next;
   free((*head0_p)->data);
@@ -108,15 +114,17 @@ int node_presnip(node_t **head0_p) {
   return 0;
 }
 
+/* erases the data corresponding to the given node */
 int node_erase(node_t *current) {
   free(current->data);
+  current->data = NULL;
   return 0;
 }
 
 int node_set(node_t *current, void *data, bool force_erase) {
   if (current->data != NULL) {
     if (!force_erase) { return -1; }
-    node_erase(current);
+    free(current->data);
   }
   current->data = data;
   return 0;
@@ -134,7 +142,10 @@ int node_copy(node_t *source, node_t **dest_p,
     node_shred(*dest_p);
     free((*dest_p)->data);
     free(*dest_p);
+    *dest_p = NULL;
   }
+
+  if (source == NULL) { return -1; }
   node_t *current0 = source;
   void *data1;
   if ((data1 = malloc(data_size)) == NULL) { return -1; }
@@ -142,6 +153,7 @@ int node_copy(node_t *source, node_t **dest_p,
   if (node_create(dest_p, data1) == -1) { return -1; }
   node_t *current1 = *dest_p;
   node_jump(&current0);
+  
   while (current0 != NULL) {
     if ((data1 = malloc(data_size)) == NULL) { return -1; }
     memcpy(data1, current0->data, data_size);

@@ -5,18 +5,23 @@
 #include "linked-list.h"
 
 #ifndef max
-	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 #endif
 
 #ifndef min
-	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
-#define g 13u //genus
-#define r 5u //rank
-#define k 5u //torsion
+#define g 22u //genus
+#define r 6u //rank
+#define k 3u //torsion
 
 size_t global_max;
+
+/* debug */
+/* #define TEST_DEPTH 2u */
+/* size_t depth = 1; */
+/* size_t count = 0; */
 
 typedef struct cell cell_t;
 struct cell {
@@ -43,14 +48,15 @@ int flocs_copy(flocs_t *, flocs_t **);
 cell_t * cell_init(size_t, size_t, size_t);
 int cell_copy(cell_t *, cell_t **);
 void print_boundary(node_t *);
-void print_flocs(flocs_t *);
+void flocs_print(flocs_t *);
+flocs_t * flocs_emptyinit(void);
 
 int main(void) {
   /* these initial assignments are made without loss of generality */
   node_t *head = NULL;
   node_create(&head, cell_init(2, 1, 2));
   node_append(head, cell_init(1, 1, 1));
-  flocs_t *flocs = malloc(sizeof(flocs_t));
+  flocs_t *flocs = flocs_emptyinit();
   flocs->x[1] = 1;
   flocs->y[1] = 1;
   flocs->x[2] = 2;
@@ -62,28 +68,39 @@ int main(void) {
   flocs_t *flocs_opt = iterate(head, flocs);
   t = clock() - t;
   
-  print_flocs(flocs_opt);
+  printf("------ settings ------\ng: %d\tr: %d\tk: %d\n------- result -------\n", g, r, k);
+  flocs_print(flocs_opt);
   printf("runtime: %f\n----------------------\n", 
 	 (double)t/(double)CLOCKS_PER_SEC);
   
+  node_shred(head);
+  free(head->data);
+  free(head);
+  free(flocs);
+  free(flocs_opt);
   return EXIT_SUCCESS;
 }
 
 /* -------------function definitions------------- */
 
 /* takes as input the head node of a boundary and a corresponding
-   flocs_t object and returns a flocs object with minimizes the max
+   flocs_t object and returns a flocs object which minimizes the max
    (number of symbols used) */
-flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
-  //printf("CALLED\n");
-  //print_boundary(bdry_hd0);
-  //print_flocs(flocs0);
-  
+flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {  
   node_t *bdry_cur0 = NULL, *bdry_nxt0 = NULL, *bdry_hd1 = NULL,
     *bdry_prv1 = NULL, *bdry_cur1 = NULL, *bdry_nxt1 = NULL, *bdry_xxt1 = NULL;
   cell_t *cell_cur0 = NULL, *cell_nxt0 = NULL, *c = NULL;
   flocs_t *flocs1 = NULL, *flocs_tmp = NULL, *flocs_opt = NULL;
   int dist = 0; //dist measures the distance along the boundary
+  
+  /* debug */
+  /* depth++; */
+  /* if (depth == TEST_DEPTH) { */
+  /*   printf("Entering depth=%lu\n", depth); */
+  /* } */
+  /* printf("CALLED\n"); */
+  /* print_boundary(bdry_hd0); */
+  /* flocs_print(flocs0); */
   
   bdry_cur0 = bdry_hd0;
   bdry_nxt0 = bdry_hd0;
@@ -92,11 +109,15 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
   cell_cur0 = (cell_t *) node_get(bdry_cur0);
   cell_nxt0 = (cell_t *) node_get(bdry_nxt0);
   
-  flocs_opt = malloc(sizeof(flocs_t));
+  flocs_opt = flocs_emptyinit();
   flocs_opt->max = global_max;
   flocs_copy(flocs0, &flocs1);
   flocs1->max++;
-  
+  /* debug */
+  /* printf("[\n"); */
+  /* flocs_print(flocs1); */
+  /* printf("]\n"); */
+
   /* the first cell */
   cell_copy(cell_cur0, &c);
   c->x++;
@@ -113,6 +134,14 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
       flocs_opt = flocs_tmp;
       global_max = flocs_opt->max;
     }
+    else {
+      free(flocs_tmp);
+      flocs_tmp = NULL;
+    }
+  }
+  else {
+    free(c);
+    c = NULL;
   }
 
   /* still the first cell */
@@ -143,6 +172,14 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
 	flocs_opt = flocs_tmp;
 	global_max = flocs_opt->max;
       }
+      else {
+	free(flocs_tmp);
+	flocs_tmp = NULL;
+      }
+    }
+    else {
+      free(c);
+      c = NULL;
     }
   }
 
@@ -188,6 +225,14 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
 	    flocs_opt = flocs_tmp;
 	    global_max = flocs_opt->max;
 	  }
+	  else {
+	    free(flocs_tmp);
+	    flocs_tmp = NULL;
+	  }
+	}
+	else {
+	  free(c);
+	  c = NULL;
 	}
       }
       node_jump(&bdry_cur0);
@@ -225,6 +270,14 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
 	  flocs_opt = flocs_tmp;
 	  global_max = flocs_opt->max;
 	}
+	else {
+	  free(flocs_tmp);
+	  flocs_tmp = NULL;
+	}
+      }
+      else {
+	free(c);
+	c = NULL;
       }
     }
     
@@ -256,10 +309,39 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
       flocs_opt = flocs_tmp;
       global_max = flocs_opt->max;
     }
+    else {
+      free(flocs_tmp);
+      flocs_tmp = NULL;
+    }
   }
-  //printf("RETURNING\n");
-  //print_flocs(flocs0);
-  //print_flocs(flocs_opt);
+  else {
+    free(c);
+    c = NULL;
+  }
+
+  node_shred(bdry_hd1);
+  if (bdry_hd1 != NULL) {
+    free(bdry_hd1->data);
+    free(bdry_hd1);
+    bdry_hd1 = NULL;
+  }
+  /* this line breaks everything; why??? */
+  if (flocs1 != flocs_opt) {
+    free(flocs1);
+    flocs1 = NULL;
+  }
+  
+  /* debug */
+  /* count++; */
+  /* depth--; */
+  /* if (depth == TEST_DEPTH) { */
+  /*   printf("Returning to depth=%lu; nodes searched=%lu\n", depth, count); */
+  /*   count = 0; */
+  /* } */
+  /* printf("RETURNING\n"); */
+  /* flocs_print(flocs0); */
+  /* flocs_print(flocs_opt); */
+
   /* if flocs_opt was not changed, all the above cases failed (and
      cycle_values() was never called): this occured either because the
      boundary coincides with the sub-antidiagonal, in which case we
@@ -268,6 +350,7 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
      is true, we return flocs_opt */
   if (flocs_opt->x[1] == 0 && is_subantidiagonal(bdry_hd0)) {
     //printf("RETURNED FLOCS0\n----------------------\n");
+    free(flocs_opt);
     return flocs0;
   }
   else {
@@ -281,7 +364,7 @@ flocs_t * iterate(node_t *bdry_hd0, flocs_t *flocs0) {
 flocs_t * cycle_values(cell_t *c, node_t *bdry_hd1,
 		       flocs_t *flocs0, flocs_t *flocs1) {
   flocs_t *flocs_tmp = NULL, *flocs_opt = NULL;
-  flocs_opt = malloc(sizeof(flocs_t));
+  flocs_opt = flocs_emptyinit();
   flocs_opt->max = global_max;
   for ( ; c->val <= flocs0->max; c->val++) {
     if ((c->x - c->y - flocs0->x[c->val] + flocs0->y[c->val]) % k == 0) {
@@ -290,6 +373,10 @@ flocs_t * cycle_values(cell_t *c, node_t *bdry_hd1,
 	free(flocs_opt);
 	flocs_opt = flocs_tmp;
 	global_max = flocs_opt->max;
+      }
+      else {
+	free(flocs_tmp);
+	flocs_tmp = NULL;
       }
     }
   }
@@ -301,6 +388,10 @@ flocs_t * cycle_values(cell_t *c, node_t *bdry_hd1,
       free(flocs_opt);
       flocs_opt = flocs_tmp;
       global_max = flocs_opt->max;
+    }
+    else {
+      free(flocs_tmp);
+      flocs_tmp = NULL;
     }
   }
   return flocs_opt;
@@ -324,7 +415,7 @@ cell_t * cell_init(size_t x, size_t y, size_t val) {
 }
 
 int cell_copy(cell_t *src, cell_t **dest) {
-  if (((*dest) = malloc(sizeof(cell_t))) == NULL) { return -1; }
+  if ((*dest = malloc(sizeof(cell_t))) == NULL) { return -1; }
   (*dest)->x = src->x;
   (*dest)->y = src->y;
   (*dest)->val = src->val;
@@ -332,7 +423,7 @@ int cell_copy(cell_t *src, cell_t **dest) {
 }
 
 int flocs_copy(flocs_t *src, flocs_t **dest) {
-  if (((*dest) = malloc(sizeof(flocs_t))) == NULL) { return -1; }
+  *dest = flocs_emptyinit();
   size_t i;
   for (i = 1; i <= src->max; i++) {
     (*dest)->x[i] = src->x[i];
@@ -351,11 +442,23 @@ void print_boundary(node_t *current) {
   }
   printf("----------------------\n");
 }
-void print_flocs(flocs_t *flocs) {
+
+void flocs_print(flocs_t *flocs) {
   size_t i;
   printf("max: %ld\n", flocs->max);
   for (i = 1; i <= flocs->max; i++) {
-    printf("%ld at (%ld, %ld)\n", i, flocs->x[i], flocs->y[i]);
+    if (i < 10) { printf("first %ld  " "at (%ld, %ld)\n", i, flocs->x[i], flocs->y[i]); }
+    else        { printf("first %ld "  "at (%ld, %ld)\n", i, flocs->x[i], flocs->y[i]); }
   }
-  printf("----------------------\n");
+}
+
+flocs_t * flocs_emptyinit() {
+  flocs_t *flocs = malloc(sizeof(flocs_t));
+  flocs->max = g;
+  size_t i;
+  for (i = 0; i < g; i++) {
+    flocs->x[i] = 0;
+    flocs->y[i] = 0;
+  }
+  return flocs;
 }
